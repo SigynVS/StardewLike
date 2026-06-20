@@ -8,7 +8,7 @@ script = ExtResource("1")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(256, 192)
-zoom = Vector2(1.5, 1.5)
+zoom = Vector2(2, 2)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 

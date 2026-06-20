@@ -291,6 +291,10 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
 	var kc: int = event.keycode
+	if kc == KEY_F11:  # fullscreen toggle works in any state
+		var fs := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
+		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if fs else DisplayServer.WINDOW_MODE_FULLSCREEN)
+		return
 	match state:
 		State.TITLE:
 			if kc == KEY_ENTER or kc == KEY_KP_ENTER:
