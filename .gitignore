@@ -1,0 +1,15 @@
+# Godot 4 import cache and generated files
+.godot/
+.import/
+export.cfg
+export_presets.cfg
+
+# Build/export output
+build/
+*.exe
+*.pck
+*.zip
+
+# OS noise
+Thumbs.db
+.DS_Store
