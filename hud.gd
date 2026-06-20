@@ -31,8 +31,42 @@ func _draw() -> void:
 	_status(font)
 	_actionbar(font, vp)
 	_quest(font, vp)
+	var prompt: String = game.structure_prompt()
+	if prompt != "":
+		var g := _bar_geom(vp)
+		draw_string(font, Vector2(0, g["y"] - 28), prompt,
+			HORIZONTAL_ALIGNMENT_CENTER, vp.x, 15, Color(1, 0.95, 0.55))
 	draw_string(font, Vector2(12, vp.y - 12), "[H] Controls",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Color(0.82, 0.82, 0.88))
+
+
+func _gui_input(event: InputEvent) -> void:
+	if game == null or not game.is_playing():
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var g := _bar_geom(get_viewport_rect().size)
+		var slots: Array = g["slots"]
+		for i in slots.size():
+			if (slots[i] as Rect2).has_point(event.position):
+				game.set_tool(i)
+				accept_event()
+				return
+		if (g["seed"] as Rect2).has_point(event.position):
+			game.cycle_seed()
+			accept_event()
+
+
+func _bar_geom(vp: Vector2) -> Dictionary:
+	var n := 4
+	var sw := 46.0
+	var gap := 8.0
+	var total := n * sw + (n - 1) * gap
+	var x0 := (vp.x - total) / 2.0
+	var y := vp.y - sw - 16.0
+	var slots := []
+	for i in n:
+		slots.append(Rect2(x0 + i * (sw + gap), y, sw, sw))
+	return {"slots": slots, "seed": Rect2(x0 + total + 16.0, y, 158, sw), "x0": x0, "y": y, "sw": sw}
 
 
 func _panel(r: Rect2, fill := Color(0.06, 0.08, 0.12, 0.80)) -> void:
@@ -58,18 +92,17 @@ func _status(font: Font) -> void:
 
 
 func _actionbar(font: Font, vp: Vector2) -> void:
-	var n := 4
-	var sw := 46.0
-	var gap := 8.0
-	var total := n * sw + (n - 1) * gap
-	var x0 := (vp.x - total) / 2.0
-	var y := vp.y - sw - 16.0
+	var g := _bar_geom(vp)
+	var slots: Array = g["slots"]
+	var x0: float = g["x0"]
+	var y: float = g["y"]
+	var sw: float = g["sw"]
 
-	draw_string(font, Vector2(x0, y - 7), "Q: switch tool", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.8, 0.8, 0.85))
+	draw_string(font, Vector2(x0, y - 7), "Q or click to switch tool", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.8, 0.8, 0.85))
 
-	for i in n:
-		var rx := x0 + i * (sw + gap)
-		var r := Rect2(rx, y, sw, sw)
+	for i in slots.size():
+		var r: Rect2 = slots[i]
+		var rx := r.position.x
 		var sel: bool = (i == game.current_tool)
 		_panel(r, Color(0.24, 0.27, 0.15, 0.95) if sel else Color(0.10, 0.11, 0.16, 0.85))
 		if sel:
@@ -84,8 +117,8 @@ func _actionbar(font: Font, vp: Vector2) -> void:
 			HORIZONTAL_ALIGNMENT_CENTER, sw, 10, Color(1, 1, 0.8) if sel else Color(0.78, 0.78, 0.82))
 
 	# Seed chip to the right of the bar.
-	var cx := x0 + total + 16.0
-	var cr := Rect2(cx, y, 158, sw)
+	var cr: Rect2 = g["seed"]
+	var cx := cr.position.x
 	_panel(cr)
 	var sic = icons.get("tool_seed")
 	if sic != null:

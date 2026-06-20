@@ -920,6 +920,25 @@ func _board_text() -> String:
 func is_playing() -> bool:
 	return state == State.PLAY
 
+func set_tool(i: int) -> void:
+	current_tool = clampi(i, 0, TOOL_NAMES.size() - 1)
+	_update_hud()
+
+func cycle_seed() -> void:
+	selected_seed = (selected_seed + 1) % CROPS.size()
+	_update_hud()
+
+func structure_prompt() -> String:
+	if _near(MINE_POS):
+		return "Press G to enter the Mine"
+	if _near(DUNGEON_POS):
+		return "Press G to enter the Dungeon"
+	if _near(BOARD_POS):
+		return "Press T to open the Quest Board"
+	if _near(WELL_POS):
+		return "Press R to refill your Watering Can"
+	return ""
+
 func season_name() -> String:
 	return SEASON_NAMES[_season_index()]
 
