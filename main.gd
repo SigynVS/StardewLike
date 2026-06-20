@@ -127,13 +127,17 @@ var enemies := []         # [{pos, hp, maxhp, cd, dmg}]
 var attack_cd := 0.0
 var swing_timer := 0.0
 
+var show_help := false
+
 @onready var hud: Label = $HUD/Label
 @onready var dim: ColorRect = $HUD/Dim
+@onready var hud_ui: Control = $HUD/Hud
 
 
 func _ready() -> void:
 	quest_done.resize(QUESTS.size())
 	_load_textures()
+	hud_ui.game = self
 	_reset_progress()
 	_init_grids()
 	state = State.TITLE
@@ -328,10 +332,17 @@ func _play_input(kc: int) -> void:
 			_try_open_board()
 		KEY_G:
 			_try_enter_combat()
-		KEY_ESCAPE:
-			state = State.TITLE
+		KEY_H:
+			show_help = not show_help
 			_update_hud()
-			queue_redraw()
+		KEY_ESCAPE:
+			if show_help:
+				show_help = false
+				_update_hud()
+			else:
+				state = State.TITLE
+				_update_hud()
+				queue_redraw()
 		KEY_E, KEY_SPACE:
 			_use_tool()
 		KEY_ENTER, KEY_KP_ENTER:
@@ -904,25 +915,52 @@ func _board_text() -> String:
 	return txt
 
 
-func _play_text() -> String:
-	var season_mark := "" if _seed_in_season(selected_seed) else "  [out of season!]"
-	var status := "Day %d (%s)   %s   $%d   Energy %d/100   Water %d/%d   HP %d/%d\n" % \
-		[day, SEASON_NAMES[_season_index()], _clock_string(), money, int(energy),
-		water, MAX_WATER, int(hp), int(MAX_HP)]
-	var controls := ("Tool: %s (Q)   Seed: %s%s (1/2/3)   B:buy ($%d)   C:clear   R:refill   T:board   G:enter mine/dungeon\n" + \
-		"Seeds  Parsnip x%d  Potato x%d  Cauliflower x%d   |   Move WASD  Use E  Sleep Enter  Esc:menu\n") % \
-		[TOOL_NAMES[current_tool], CROPS[selected_seed]["name"], season_mark, SEED_PRICE[selected_seed],
-		seeds[0], seeds[1], seeds[2]]
-	var qpanel := "Quests %d/%d done" % [_quests_done_count(), QUESTS.size()]
+# --- HUD accessors used by hud.gd ---
+
+func is_playing() -> bool:
+	return state == State.PLAY
+
+func season_name() -> String:
+	return SEASON_NAMES[_season_index()]
+
+func clock_text() -> String:
+	return _clock_string()
+
+func selected_seed_name() -> String:
+	return CROPS[selected_seed]["name"]
+
+func selected_seed_count() -> int:
+	return seeds[selected_seed]
+
+func selected_seed_in_season() -> bool:
+	return _seed_in_season(selected_seed)
+
+func quest_total() -> int:
+	return QUESTS.size()
+
+func next_quest_text() -> String:
 	if won:
-		qpanel += "   *** YOU WIN! ***"
-	qpanel += "   (press T at the board for the full list)"
+		return "*** YOU WIN! ***"
 	for i in QUESTS.size():
 		if not quest_done[i]:
 			var q: Dictionary = QUESTS[i]
-			qpanel += "\nNext: %s  (%d/%d)  +$%d" % [q["desc"], _quest_value(q), q["target"], q["reward"]]
-			break
-	return status + controls + qpanel
+			return "Next: %s  (%d/%d)  +$%d" % [q["desc"], _quest_value(q), q["target"], q["reward"]]
+	return "All quests complete!"
+
+
+func _controls_help_text() -> String:
+	return ("CONTROLS      [H or Esc to close]\n\n" + \
+		"Move           WASD / Arrows\n" + \
+		"Use tool       E or Space\n" + \
+		"Switch tool    Q\n" + \
+		"Select seed    1 / 2 / 3\n" + \
+		"Buy seed       B\n" + \
+		"Clear tree/rock   C\n" + \
+		"Refill water (at well)   R\n" + \
+		"Quest board (near it)    T\n" + \
+		"Enter mine/dungeon (near it)   G\n" + \
+		"Sleep          Enter\n" + \
+		"Menu           Esc")
 
 
 func _combat_text() -> String:
@@ -948,9 +986,9 @@ func _update_hud() -> void:
 			hud.text = _board_text()
 		State.COMBAT:
 			hud.text = _combat_text()
-		_:
-			hud.text = _play_text()
-	dim.visible = state == State.TITLE or state == State.BOARD
+		_:  # PLAY — rich HUD is drawn by hud.gd; Label only used for the help overlay
+			hud.text = _controls_help_text() if show_help else ""
+	dim.visible = state == State.TITLE or state == State.BOARD or (state == State.PLAY and show_help)
 
 
 # ----------------------------------------------------------------------------
