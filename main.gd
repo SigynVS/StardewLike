@@ -110,6 +110,12 @@ var c_deepest := 0
 
 var quest_done := []
 
+# Optional sprite textures, loaded from res://assets/<name>.png if present.
+# When a texture is missing the renderer falls back to procedural rectangles,
+# so the game runs identically with or without art.
+const TEX_NAMES := ["grass", "tilled", "watered", "tree", "rock", "well", "board", "mine", "dungeon", "player"]
+var tex := {}
+
 # Combat state (transient — not saved).
 var cb_mode := "mine"
 var cb_floor := 1
@@ -127,6 +133,7 @@ var swing_timer := 0.0
 
 func _ready() -> void:
 	quest_done.resize(QUESTS.size())
+	_load_textures()
 	_reset_progress()
 	_init_grids()
 	state = State.TITLE
@@ -727,6 +734,22 @@ func _quests_done_count() -> int:
 # DRAW
 # ----------------------------------------------------------------------------
 
+func _load_textures() -> void:
+	for n in TEX_NAMES:
+		var p: String = "res://assets/" + str(n) + ".png"
+		tex[n] = load(p) if ResourceLoader.exists(p) else null
+
+
+func _blit(name: String, rect: Rect2) -> bool:
+	# Draw the named sprite into rect; return false if no texture is loaded
+	# so callers can fall back to procedural drawing.
+	var t = tex.get(name)
+	if t == null:
+		return false
+	draw_texture_rect(t, rect, false)
+	return true
+
+
 func _draw() -> void:
 	if state == State.COMBAT:
 		_draw_combat()
@@ -743,33 +766,45 @@ func _draw_farm() -> void:
 				col = Color(0.47, 0.32, 0.21)
 			elif soil[y][x] == Soil.WATERED:
 				col = Color(0.30, 0.20, 0.13)
-			draw_rect(rect, col)
-			draw_rect(rect, Color(0, 0, 0, 0.10), false, 1.0)
+			var gname := "grass"
+			if soil[y][x] == Soil.TILLED:
+				gname = "tilled"
+			elif soil[y][x] == Soil.WATERED:
+				gname = "watered"
+			if not _blit(gname, rect):
+				draw_rect(rect, col)
+				draw_rect(rect, Color(0, 0, 0, 0.10), false, 1.0)
 
 			var here := Vector2i(x, y)
 			if here == WELL_POS:
-				draw_rect(Rect2(x * TILE + 4, y * TILE + 4, TILE - 8, TILE - 8), Color(0.35, 0.30, 0.28))
-				draw_rect(Rect2(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16), Color(0.25, 0.55, 0.85))
+				if not _blit("well", rect):
+					draw_rect(Rect2(x * TILE + 4, y * TILE + 4, TILE - 8, TILE - 8), Color(0.35, 0.30, 0.28))
+					draw_rect(Rect2(x * TILE + 8, y * TILE + 8, TILE - 16, TILE - 16), Color(0.25, 0.55, 0.85))
 				continue
 			if here == BOARD_POS:
-				draw_rect(Rect2(x * TILE + 4, y * TILE + 6, TILE - 8, TILE - 14), Color(0.55, 0.40, 0.22))
-				draw_rect(Rect2(x * TILE + 13, y * TILE + 18, 6, 12), Color(0.35, 0.24, 0.12))
+				if not _blit("board", rect):
+					draw_rect(Rect2(x * TILE + 4, y * TILE + 6, TILE - 8, TILE - 14), Color(0.55, 0.40, 0.22))
+					draw_rect(Rect2(x * TILE + 13, y * TILE + 18, 6, 12), Color(0.35, 0.24, 0.12))
 				continue
 			if here == MINE_POS:
-				draw_rect(Rect2(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6), Color(0.30, 0.28, 0.30))
-				draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + TILE / 2.0 + 3), 8.0, Color(0.05, 0.05, 0.08))
+				if not _blit("mine", rect):
+					draw_rect(Rect2(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6), Color(0.30, 0.28, 0.30))
+					draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + TILE / 2.0 + 3), 8.0, Color(0.05, 0.05, 0.08))
 				continue
 			if here == DUNGEON_POS:
-				draw_rect(Rect2(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6), Color(0.32, 0.22, 0.30))
-				draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + TILE / 2.0 + 3), 8.0, Color(0.08, 0.03, 0.10))
+				if not _blit("dungeon", rect):
+					draw_rect(Rect2(x * TILE + 3, y * TILE + 3, TILE - 6, TILE - 6), Color(0.32, 0.22, 0.30))
+					draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + TILE / 2.0 + 3), 8.0, Color(0.08, 0.03, 0.10))
 				continue
 
 			var ob: int = obstacle[y][x]
 			if ob == 1:
-				draw_rect(Rect2(x * TILE + 13, y * TILE + 16, 6, 14), Color(0.40, 0.26, 0.13))
-				draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + 13), 12.0, Color(0.16, 0.45, 0.20))
+				if not _blit("tree", rect):
+					draw_rect(Rect2(x * TILE + 13, y * TILE + 16, 6, 14), Color(0.40, 0.26, 0.13))
+					draw_circle(Vector2(x * TILE + TILE / 2.0, y * TILE + 13), 12.0, Color(0.16, 0.45, 0.20))
 			elif ob == 2:
-				draw_rect(Rect2(x * TILE + 7, y * TILE + 10, 18, 15), Color(0.55, 0.55, 0.62))
+				if not _blit("rock", rect):
+					draw_rect(Rect2(x * TILE + 7, y * TILE + 10, 18, 15), Color(0.55, 0.55, 0.62))
 			else:
 				var ct: int = crop_type[y][x]
 				if ct >= 0:
@@ -784,8 +819,9 @@ func _draw_farm() -> void:
 					if _is_ripe(x, y):
 						draw_rect(rect, Color(1, 0.9, 0.2, 0.9), false, 2.0)
 
-	draw_rect(Rect2(player_pos.x - 9, player_pos.y - 13, 18, 26), Color(0.88, 0.28, 0.28))
-	draw_circle(player_pos + facing * 14.0, 3.0, Color(1, 1, 0.4))
+	if not _blit("player", Rect2(player_pos.x - 16, player_pos.y - 24, 32, 32)):
+		draw_rect(Rect2(player_pos.x - 9, player_pos.y - 13, 18, 26), Color(0.88, 0.28, 0.28))
+		draw_circle(player_pos + facing * 14.0, 3.0, Color(1, 1, 0.4))
 	var ot := _current_tile()
 	draw_rect(Rect2(ot.x * TILE, ot.y * TILE, TILE, TILE), Color(1, 1, 1, 0.9), false, 2.0)
 
